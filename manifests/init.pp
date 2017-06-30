@@ -28,6 +28,11 @@
 #   You may want to turn off if you use root.
 #   Default: true.
 #
+# [*manage_repo*]
+#   Do you want to manage the repository
+#   You may want to turn off if you manage your repositories differently
+#   Default: true.
+#
 # [*user*]
 #   The user to manage or run as
 #   You may want to use root.
@@ -41,6 +46,7 @@ class gitlab_ci_multi_runner (
     $nice = undef,
     $env = undef,
     $manage_user = true,
+    $manage_repo = true,
     $user = 'gitlab_ci_multi_runner',
     $version = 'latest'
 ) {
@@ -122,14 +128,34 @@ class gitlab_ci_multi_runner (
           before     => Exec['Add Repository'],
       }
     }
-    # Add The repository to yum/deb-get
-    exec { 'Add Repository':
-        command  => "curl -L ${repo_script}/script.${package_type}.sh | bash",
-        user     => root,
-        provider => shell,
-        creates  => $repo_location,
-    } ->
-    # Install the package after the repo has been added.
+
+    if $manage_repo {
+        exec { 'Add Repository':
+            command  => "curl -L ${repo_script}/script.${package_type}.sh | bash",
+            user     => root,
+            provider => shell,
+            creates  => $repo_location,
+            before   => Package['gitlab-ci-multi-runner'],
+        }
+
+        # Stop the package being updated where a specific version is specified
+        if !($theVersion in ['latest', 'present']) {
+            exec { 'Yum Exclude Line':
+                command  => 'echo exclude= >> /etc/yum.conf',
+                onlyif   => "! grep '^exclude=' /etc/yum.conf",
+                user     => root,
+                provider => shell,
+                require  => Exec['Ensure Service'],
+            } ->
+            exec { 'Yum Exclude gitlab-ci-multi-runner':
+                command  => "sed -i 's/^exclude=.*$/& gitlab-ci-multi-runner/' /etc/yum.conf",
+                onlyif   => "! grep '^exclude=.*gitlab-ci-multi-runner' /etc/yum.conf",
+                user     => root,
+                provider => shell,
+            }
+        }
+    }
+
     package { 'gitlab-ci-multi-runner':
         ensure => $theVersion,
     } ->
@@ -155,22 +181,6 @@ class gitlab_ci_multi_runner (
         ensure => 'running',
     }
 
-    # Stop the package being updated where a specific version is specified
-    if ! ($theVersion in ['latest', 'present']) {
-        exec { 'Yum Exclude Line':
-            command  => 'echo exclude= >> /etc/yum.conf',
-            onlyif   => "! grep '^exclude=' /etc/yum.conf",
-            user     => root,
-            provider => shell,
-            require  => Exec['Ensure Service'],
-        }->
-        exec { 'Yum Exclude gitlab-ci-multi-runner':
-            command  => "sed -i 's/^exclude=.*$/& gitlab-ci-multi-runner/' /etc/yum.conf",
-            onlyif   => "! grep '^exclude=.*gitlab-ci-multi-runner' /etc/yum.conf",
-            user     => root,
-            provider => shell,
-        }
-    }
     if $nice != undef {
         if $nice =~ /^(-20|[-+]?1?[0-9])$/ {
             $path = '/bin:/usr/bin:/usr/sbin:/usr/local/sbin:/usr/local/bin:/sbin'
