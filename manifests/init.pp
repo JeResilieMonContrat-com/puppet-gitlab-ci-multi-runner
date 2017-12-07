@@ -33,6 +33,7 @@
 #  include '::gitlab_ci_multi_runner'
 #
 class gitlab_ci_multi_runner (
+    $package_name = 'gitlab-runner',
     $env = undef,
     $manage_user = true,
     $user = 'gitlab_ci_multi_runner',
@@ -106,7 +107,7 @@ class gitlab_ci_multi_runner (
       }
     }
 
-    package { 'gitlab-ci-multi-runner':
+    package { $package_name:
         ensure => $theVersion,
     } ->
     exec { 'Uninstall Misconfigured Service':
