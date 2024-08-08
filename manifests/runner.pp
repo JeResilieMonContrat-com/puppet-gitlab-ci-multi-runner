@@ -207,7 +207,7 @@ define gitlab_ci_multi_runner::runner (
 ) {
     # GitLab allows runner names with problematic characters like quotes
     # Make sure they don't trip up the shell when executed
-    $node_description = shellquote($::hostname)
+    $node_description = shellquote($facts['networking']['hostname'])
 
     # Here begins the arduous, manual process of taking each argument
     # and turning it into option strings.

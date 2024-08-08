@@ -39,22 +39,22 @@ class gitlab_ci_multi_runner (
     $user = 'gitlab_ci_multi_runner',
     $version = 'latest'
 ) {
-    $package_type = $::osfamily ? {
+    $package_type = $facts['os']['family'] ? {
         'redhat' => 'rpm',
         'debian' => 'deb',
         default  => 'unknown',
     }
     $issues_link = 'https://github.com/frankiethekneeman/puppet-gitlab-ci-multi-runner/issues'
     if $package_type == 'unknown' {
-        fail("Target Operating system (${::operatingsystem}) not supported")
+        fail("Target Operating system (${$facts['os']['name']}) not supported")
     }
 
     $service_file = $package_type ? {
-        'rpm'   => $::operatingsystemrelease ? {
+        'rpm'   => $facts['os']['release']['full'] ? {
             /^(5.*|6.*)/ => '/etc/init.d/gitlab-ci-multi-runner',
             default      => '/etc/systemd/system/gitlab-runner.service',
         },
-        'deb'   => $::operatingsystemrelease ? {
+        'deb'   => $facts['os']['release']['full'] ? {
             /^(14.*|7.*)/ => '/etc/init/gitlab-runner.conf',
             default => '/etc/systemd/system/gitlab-runner.service',
         },
@@ -62,8 +62,8 @@ class gitlab_ci_multi_runner (
     }
 
     if !$version {
-        $theVersion = $::osfamily ? {
-            'redhat' => $::operatingsystemrelease ? {
+        $theVersion = $facts['os']['family'] ? {
+            'redhat' => $facts['os']['release']['full'] ? {
                 /^(5.*|6.*)/ => '0.4.2-1',
                 default      => 'latest',
             },
